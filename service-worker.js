@@ -9,7 +9,10 @@ const PRECACHE_ASSETS = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  './091e1c8f-1995-418e-8bdb-f31e916fc16f.png'
+  './091e1c8f-1995-418e-8bdb-f31e916fc16f.png',
+  // Externí knihovny pro offline použití (QR code a komprese)
+  'https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js',
+  'https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js'
 ];
 
 self.addEventListener('install', event => {
