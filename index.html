@@ -345,7 +345,8 @@
   <!-- Additional controls: share link and theme toggle -->
   <div id="controls" style="text-align:center; margin-bottom:10px;">
     <!-- Skrytý tlačítko pro sdílení odkazu (už není součástí zjednodušené verze) -->
-    <button id="shareBtn" style="display:none; padding:4px 8px; margin-right:8px;">Vygenerovat odkaz</button>
+    <!-- Tlačítko pro vygenerování odkazu na aktuální trasu -->
+    <button id="shareBtn" style="padding:4px 8px; margin-right:8px;">Vygenerovat odkaz</button>
     <label for="themeSelect">Téma mapy: </label>
     <select id="themeSelect" style="padding:4px;">
       <option value="day">Denní</option>
@@ -353,21 +354,22 @@
     </select>
 
     <!-- Skrytý geolokační tlačítko (není potřeba) -->
-    <button id="locateBtn" style="display:none; padding:4px 8px; margin-left:8px;">Zobrazit moji polohu</button>
+    <!-- Tlačítko pro zjištění a zobrazení aktuální polohy uživatele -->
+    <button id="locateBtn" style="padding:4px 8px; margin-left:8px;">Zobrazit moji polohu</button>
 
     <!-- Offline mode toggle.  When enabled, the service worker will serve map tiles from cache only. -->
     <label style="margin-left:12px;">
       <input type="checkbox" id="offlineToggle" /> Offline mód
     </label>
 
-    <!-- Skrytý vyhledávací vstup (zjednodušená verze nepotřebuje vyhledávání) -->
-    <input id="searchInput" list="searchList" placeholder="Vyhledat místo…" style="display:none; padding:4px 8px; margin-left:12px;" />
-    <datalist id="searchList" style="display:none;"></datalist>
+    <!-- Vyhledávací vstup a datalist pro rychlé vyhledání místa na mapě -->
+    <input id="searchInput" list="searchList" placeholder="Vyhledat místo…" style="padding:4px 8px; margin-left:12px;" />
+    <datalist id="searchList"></datalist>
 
-    <!-- Additional controls: QR code, admin mode and tracking are skryté ve zjednodušené verzi -->
-    <button id="qrBtn" style="display:none; padding:4px 8px; margin-left:8px;">QR kód</button>
-    <button id="adminToggle" style="display:none; padding:4px 8px; margin-left:8px;">Admin: OFF</button>
-    <label style="display:none; margin-left:12px;">
+    <!-- Dodatečné ovládací prvky: zobrazení QR kódu pro sdílení, přepnutí do administrátorského režimu a přepínač sledování pohybu -->
+    <button id="qrBtn" style="padding:4px 8px; margin-left:8px;">QR kód</button>
+    <button id="adminToggle" style="padding:4px 8px; margin-left:8px;">Admin: OFF</button>
+    <label style="margin-left:12px;">
       <input type="checkbox" id="trackingToggle" /> Sledovat pohyb
     </label>
   </div>
@@ -422,7 +424,9 @@
     src="https://unpkg.com/leaflet/dist/leaflet.js"
   ></script>
 
-  <!-- QRCode library removed in optimized version -->
+  <!-- Knihovna QRCode pro generování QR kódů (používá se při sdílení trasy) -->
+  <script src="https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js"></script>
+
   <!-- LZ‑String library for compressing/decompressing shared data -->
   <script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
 
