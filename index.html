@@ -376,15 +376,16 @@
   <div id="map"></div>
 
   <!-- Floating interactive elements: chat and QR code are hidden in the optimized version -->
-  <button id="chatToggle" style="display:none;">💬</button>
-  <div id="chatBox" style="display:none;">
+  <!-- Chat toggle button: umožňuje uživatelům otevřít chat s AI odpovídající na dotazy -->
+  <button id="chatToggle">💬</button>
+  <div id="chatBox">
     <div id="chatMessages"></div>
     <div id="chatInputWrapper">
       <input type="text" id="chatInput" placeholder="Zeptejte se..." />
       <button id="chatSend">Poslat</button>
     </div>
   </div>
-  <div id="qrContainer" style="display:none;">
+  <div id="qrContainer">
     <div id="qrcode"></div>
     <button id="qrClose" style="margin-top:8px;">Zavřít</button>
     <!-- Link to open the generated itinerary in Safari (iOS) -->
@@ -967,6 +968,21 @@
       if (navigator.serviceWorker && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'SET_OFFLINE_MODE', enabled: enabled });
       }
+  // Provide immediate visual feedback when toggling offline mode. Update the
+  // online/offline indicator to reflect the desired caching behaviour so the
+  // user is confident about the current state.
+  var indicator = document.getElementById('offlineIndicator');
+  if (indicator) {
+    if (enabled) {
+      indicator.classList.remove('online');
+      indicator.classList.add('offline');
+      indicator.textContent = 'Offline mód';
+    } else {
+      indicator.classList.remove('offline');
+      indicator.classList.add('online');
+      indicator.textContent = 'Online';
+    }
+  }
     }
     var offlineToggle = document.getElementById('offlineToggle');
     if (offlineToggle) {
@@ -1286,16 +1302,57 @@
         chatMessages.appendChild(p);
         chatMessages.scrollTop = chatMessages.scrollHeight;
       }
-      function answerQuery(q) {
-        /*
-         * Vylepšená funkce pro zodpovídání dotazů. Dotaz se normalizuje
-         * do malých písmen bez diakritiky a poté se porovnává proti
-         * databázi znalostí. Každá položka definuje seznam klíčových
-         * slov a odpověď. Pokud se dotaz shoduje s některou položkou,
-         * vrátí se její odpověď. Speciální kontrola „kolik“ vrátí
-         * počet bodů v itineráři. Pokud se dotaz neshoduje s žádnou
-         * známou položkou, vrátí se obecná odpověď s návodem.
-         */
+      /**
+       * Answer a user query.  This helper first attempts to call the
+       * OpenAI API when an API key is available and network access
+       * succeeds.  It falls back to matching the question against a
+       * built‑in knowledge base.  Finally, if no knowledge entry
+       * matches, a generic description of the app is returned.
+       *
+       * To enable full AI answers, store your OpenAI API key in
+       * localStorage under the key "openai-key" (e.g. via the
+       * browser console: localStorage.setItem('openai-key', 'sk‑...')).
+       * Without a key, the chatbot will answer using the built‑in
+       * knowledge base only.  If the remote request fails (for
+       * example due to lack of CORS or network connectivity), the
+       * knowledge base and generic response will be used instead.
+       *
+       * @param {string} q The user query
+       * @returns {Promise<string>} A promise resolving to the answer
+       */
+      async function answerQuery(q) {
+        // Attempt to call OpenAI if a key is configured
+        const apiKey = localStorage.getItem('openai-key');
+        const openAiUrl = 'https://api.openai.com/v1/chat/completions';
+        if (apiKey) {
+          try {
+            const response = await fetch(openAiUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + apiKey
+              },
+              body: JSON.stringify({
+                model: 'gpt-3.5-turbo',
+                messages: [
+                  { role: 'system', content: 'Jsi chytrý průvodce itinerářem Žitavských hor, který odpovídá na dotazy o místních atrakcích a fungování aplikace.' },
+                  { role: 'user', content: q }
+                ],
+                temperature: 0.7,
+                max_tokens: 200
+              })
+            });
+            if (response.ok) {
+              const data = await response.json();
+              const answer = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+              if (answer) return answer.trim();
+            }
+          } catch (err) {
+            // ignore errors from AI API and fall back
+            console.warn('AI request failed:', err);
+          }
+        }
+        // --- fallback knowledge base below ---
         var text = q.toLowerCase();
         var clean = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         function containsAny(query, keys) {
@@ -1376,8 +1433,9 @@
             return entry.answer;
           }
         }
-        // Obecná odpověď
-        return 'Dotazu nerozumím. Prosím, ptejte se na konkrétní místo nebo funkci této stránky (např. sdílení, offline režim, téma).';
+        // Obecná odpověď: pokud se dotaz neshoduje s žádnou známou položkou,
+        // vrátí se univerzální popis aplikace a doporučení, jak najít informace.
+        return 'Tato mapa itineráře vám pomůže naplánovat výlet po Žitavsku včetně Pop‑Art Viertel, historické úzkokolejky a okolních vyhlídek. Můžete vyhledávat místa, zobrazit QR kód pro sdílení, přepnout denní/noční téma nebo offline režim. Pokud potřebujete konkrétní informace, zkuste prosím položit dotaz s názvem místa či funkce aplikace.';
       }
       if (chatToggle) {
         chatToggle.addEventListener('click', function() {
@@ -1393,8 +1451,10 @@
           var val = chatInput.value.trim();
           if (!val) return;
           addChatMessage(val, 'user');
-          var resp = answerQuery(val);
-          addChatMessage(resp, 'bot');
+          // Answer the query (promise) and append when resolved
+          answerQuery(val).then(function(resp) {
+            addChatMessage(resp, 'bot');
+          });
           chatInput.value = '';
         });
         chatInput.addEventListener('keypress', function(e) {
@@ -2123,6 +2183,47 @@ whenReady(() => {
     if (originalSave) originalSave();
   };
 });
+
+  // --------------------------------------------------------------
+  // Route verification using OSRM
+  //
+  // This helper asynchronously checks the walking duration between
+  // consecutive points in the itinerary. If the trip time exceeds
+  // 60 minutes, it logs a suggestion to consider public transport
+  // (e.g., bus or narrow‑gauge railway). The OSRM public API does not
+  // require an API key but may enforce rate limits. If you prefer to
+  // use Google Maps API, replace the fetch URL with a Directions API
+  // endpoint and provide your API key.
+  async function verifyRoutes() {
+    const baseUrl = 'https://router.project-osrm.org/route/v1/foot';
+    for (let i = 0; i < locations.length - 1; i++) {
+      const curr = locations[i];
+      const next = locations[i + 1];
+      // Prepare coordinates in lon,lat order as required by OSRM
+      const coords1 = curr.coords[1] + ',' + curr.coords[0];
+      const coords2 = next.coords[1] + ',' + next.coords[0];
+      const url = `${baseUrl}/${coords1};${coords2}?overview=false`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (!data.routes || !data.routes[0]) continue;
+        const duration = data.routes[0].duration; // seconds
+        const minutes = duration / 60;
+        const legInfo = `${curr.name} → ${next.name}: ${minutes.toFixed(0)} min`;
+        if (duration > 3600) {
+          console.log(legInfo + ' (navrh: využij veřejnou dopravu)');
+        } else {
+          console.log(legInfo + ' (vhodné pěšky)');
+        }
+      } catch (err) {
+        console.warn('Route check failed for', curr.name, next.name, err);
+      }
+    }
+  }
+
+  // Spusť ověření tras po načtení itineráře.  Výsledky se zobrazí v konzoli.
+  verifyRoutes().catch(err => console.warn('Route verification error:', err));
 </script>
   <!-- Backup import/export functions placed outside of module scope so they are globally accessible -->
   <script>
