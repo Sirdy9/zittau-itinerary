@@ -432,6 +432,20 @@
   <script src="https://cdn.jsdelivr.net/npm/lz-string@1.4.4/libs/lz-string.min.js"></script>
 
   <script>
+    // If you wish to use OpenAI answers in the chatbot, place your API key
+    // below.  The key will be stored in localStorage under 'openai-key'
+    // so that calls to the OpenAI API work automatically.  Leave this
+    // string empty if you don't want to embed your key directly in the
+    // source code; you can instead set it in the browser console via
+    // localStorage.setItem('openai-key', 'sk-...').
+    const OPENAI_API_KEY = '';
+    if (OPENAI_API_KEY && !localStorage.getItem('openai-key')) {
+      try {
+        localStorage.setItem('openai-key', OPENAI_API_KEY);
+      } catch (e) {
+        console.warn('Nemohu uložit OpenAI klíč do localStorage:', e);
+      }
+    }
     // Initialize the map centered on Zittau
     var map = L.map('map').setView([50.89, 14.8], 11);
     // Define base layers for day and night themes.  The day layer uses the
@@ -1025,8 +1039,10 @@
       searchInput.addEventListener('change', function() {
         var val = this.value.trim();
         if (!val) return;
+        var lower = val.toLowerCase();
+        // Najdi první položku, která obsahuje zadaný text v názvu (část postačí)
         var match = locations.find(function(loc) {
-          return loc.name.toLowerCase() === val.toLowerCase();
+          return loc.name.toLowerCase().indexOf(lower) !== -1;
         });
         if (match) {
           // Update day selector to show the relevant day
@@ -1425,6 +1441,27 @@
         if (clean.indexOf('kolik') !== -1) {
           var totalPlaces = locations.length;
           return 'V itineráři je celkem ' + totalPlaces + ' bodů. Vyberte konkrétní den v rozbalovacím menu pro podrobnosti.';
+        }
+        // Pokud dotaz obsahuje „soubor“, „příloha“ nebo „file“, vypiš seznam uložených souborů
+        if (containsAny(clean, ['soubor','priloha','příloha','file','přílohy','příloh'])) {
+          var fileNames = [];
+          for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (k && k.indexOf('files-') === 0) {
+              try {
+                var arr = JSON.parse(localStorage.getItem(k));
+                if (Array.isArray(arr)) {
+                  arr.forEach(function(obj) {
+                    if (obj && obj.name) fileNames.push(obj.name);
+                  });
+                }
+              } catch (e) {}
+            }
+          }
+          if (fileNames.length === 0) {
+            return 'Momentálně nemáte uloženy žádné přílohy. Soubor můžete nahrát v popup okně místa.';
+          }
+          return 'Uložené přílohy: ' + fileNames.join(', ') + '. Můžete je stáhnout otevřením příslušných míst v mapě.';
         }
         // Vyhledání odpovědi v databázi
         for (var i = 0; i < knowledgeEntries.length; i++) {
