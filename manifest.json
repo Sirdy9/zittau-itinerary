@@ -1,0 +1,22 @@
+{
+  "name": "Mapa itineráře Zittau a okolí",
+  "short_name": "Zittau itinerář",
+  "description": "Interaktivní mapa psího itineráře Zittau a okolí",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "scope": "./",
+  "background_color": "#ffffff",
+  "theme_color": "#377eb8",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
